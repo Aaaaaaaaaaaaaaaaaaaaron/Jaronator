@@ -7,25 +7,25 @@ import Hobot.GPIO as GPIO
 # ========================
 # Pin configuration (BOARD numbering)
 # ========================
-PIN_X_IN1  = 22
-PIN_X_IN2  = 23
-PIN_Y_IN1  = 24
-PIN_Y_IN2  = 25
-PIN_Z_UP   = 29   # <<< anpassen
-PIN_Z_DOWN = 31   # <<< anpassen
+PIN_X_IN1  = 11
+PIN_X_IN2  = 12
+PIN_Y_IN1  = 13
+PIN_Y_IN2  = 15
+PIN_Z_UP   = 29   # <<< noch anpassen
+PIN_Z_DOWN = 31   # <<< noch anpassen
 PIN_GRIP   = 7
 PIN_GRIP2  = 16   # optional zweiter Pin
-PIN_COIN   = 18   # <<< Coin-Sensor (Input)
+PIN_COIN   = 37   # Eingang fuer Coin-Signal
 
-ALL_OUT_PINS = [
+ALL_PINS = [
     PIN_X_IN1, PIN_X_IN2,
     PIN_Y_IN1, PIN_Y_IN2,
     PIN_Z_UP,  PIN_Z_DOWN,
     PIN_GRIP,  PIN_GRIP2
 ]
 
-# Grip state
-grip_state = False
+# Track grip state
+grip_state = False   # False = LOW (offen), True = HIGH (geschlossen)
 
 # ========================
 def cleanup():
@@ -92,6 +92,7 @@ def manual_mode():
         elif key == "d":
             move_x("right")
         elif key == "x":
+            # Down if grip LOW, Up if grip HIGH
             if grip_state:
                 move_z("up")
             else:
@@ -102,44 +103,40 @@ def manual_mode():
             print("Invalid input")
 
 def auto_mode():
-    print("\nAuto mode selected.")
-    print("Waiting for coin... (insert to start)")
-    # Warten bis Muenze erkannt wird
-    while True:
-        if GPIO.input(PIN_COIN) == GPIO.HIGH:
-            print("Coin detected! Auto mode starting...")
-            break
-        time.sleep(0.1)
-
-    # Placeholder for ROS2 / Automat
-    for i in range(3):
-        print(f"Auto mode step {i+1}")
-        move_x("right")
-        move_y("forward")
-        toggle_grip()
-    print("Auto mode finished.")
+    print("\nAuto mode started after coin insert")
+    # Hier kommt spaeter die ROS2 Logik hin
+    # Im Moment nur Dummy Bewegung
+    move_y("forward")
+    move_z("down")
+    toggle_grip()
+    move_z("up")
+    move_y("backward")
 
 # ========================
 def main():
     GPIO.setmode(GPIO.BOARD)
-
-    # Outputs
-    for p in ALL_OUT_PINS:
+    for p in ALL_PINS:
         GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(PIN_COIN, GPIO.IN)
 
-    # Coin input
-    GPIO.setup(PIN_COIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-
-    print("Gripper control with coin input")
+    #print("Gripper control with Z axis and coin start")
     print("1) Manual mode")
-    print("2) Auto mode (needs coin)")
+    print("2) Auto mode ")
+
     choice = input("Select mode (1/2): ").strip()
 
     try:
         if choice == "1":
             manual_mode()
         elif choice == "2":
-            auto_mode()
+            print("Waiting for coin...")
+            last_state = 0
+            while True:
+                state = GPIO.input(PIN_COIN)
+                if state == 1 and last_state == 0:
+                    auto_mode()
+                last_state = state
+                time.sleep(0.05)
         else:
             print("Invalid selection")
     finally:
