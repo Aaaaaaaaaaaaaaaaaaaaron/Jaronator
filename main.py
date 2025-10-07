@@ -3,6 +3,7 @@ import sys
 import signal
 import time
 import Hobot.GPIO as GPIO
+import tkinter as tk
 
 # ========================
 # Pin configuration (BOARD numbering)
@@ -41,18 +42,18 @@ def stop_all():
 
 def move_x(direction, duration=0.5):
     stop_all()
-    if direction == "hin":   # towards outfeed
+    if direction == "hin":
         GPIO.output(PIN_X_IN1, GPIO.HIGH)
-    elif direction == "weg": # away from outfeed
+    elif direction == "weg":
         GPIO.output(PIN_X_IN2, GPIO.HIGH)
     time.sleep(duration)
     stop_all()
 
 def move_y(direction, duration=0.5):
     stop_all()
-    if direction == "weg":   # away from outfeed
+    if direction == "weg":
         GPIO.output(PIN_Y_IN1, GPIO.HIGH)
-    elif direction == "hin": # towards outfeed
+    elif direction == "hin":
         GPIO.output(PIN_Y_IN2, GPIO.HIGH)
     time.sleep(duration)
     stop_all()
@@ -76,7 +77,7 @@ def toggle_grip():
 # ========================
 def manual_mode():
     print("\nManual mode active")
-    print("Keys: w=y weg  s=y hin  a=x hin  d=x weg  x=z-axis  g=grip  q=quit")
+    print("Keys: w=forward s=back a=left d=right x=z-axis g=grip q=quit")
     while True:
         key = input(">> ").strip().lower()
         if key == "q":
@@ -91,7 +92,6 @@ def manual_mode():
         elif key == "d":
             move_x("weg")
         elif key == "x":
-            # Down if grip LOW, Up if grip HIGH
             if grip_state:
                 move_z("up")
             else:
@@ -105,6 +105,58 @@ def auto_mode():
     print("\nAuto mode placeholder for future ROS2 integration")
 
 # ========================
+def gui_mode():
+    window = tk.Tk()
+    window.title("Gripper Control GUI")
+    window.geometry("400x400")
+    window.configure(bg="#202020")
+
+    def btn_move_y_weg():
+        move_y("weg")
+
+    def btn_move_y_hin():
+        move_y("hin")
+
+    def btn_move_x_hin():
+        move_x("hin")
+
+    def btn_move_x_weg():
+        move_x("weg")
+
+    def btn_z_axis():
+        if grip_state:
+            move_z("up")
+        else:
+            move_z("down")
+
+    def btn_grip():
+        toggle_grip()
+
+    def btn_quit():
+        stop_all()
+        cleanup()
+        window.destroy()
+
+    tk.Label(window, text="Gripper Control", font=("Arial", 16), fg="white", bg="#202020").pack(pady=10)
+
+    frame = tk.Frame(window, bg="#202020")
+    frame.pack(pady=20)
+
+    btn_font = ("Arial", 14)
+
+    tk.Button(frame, text="Y weg (W)", width=12, height=2, command=btn_move_y_weg, font=btn_font).grid(row=0, column=1, padx=5, pady=5)
+    tk.Button(frame, text="X hin (A)", width=12, height=2, command=btn_move_x_hin, font=btn_font).grid(row=1, column=0, padx=5, pady=5)
+    tk.Button(frame, text="STOP", width=12, height=2, command=stop_all, font=btn_font, fg="red").grid(row=1, column=1, padx=5, pady=5)
+    tk.Button(frame, text="X weg (D)", width=12, height=2, command=btn_move_x_weg, font=btn_font).grid(row=1, column=2, padx=5, pady=5)
+    tk.Button(frame, text="Y hin (S)", width=12, height=2, command=btn_move_y_hin, font=btn_font).grid(row=2, column=1, padx=5, pady=5)
+
+    tk.Button(window, text="Z-Achse (X)", width=16, height=2, command=btn_z_axis, font=btn_font).pack(pady=5)
+    tk.Button(window, text="Grip (G)", width=16, height=2, command=btn_grip, font=btn_font).pack(pady=5)
+    tk.Button(window, text="QUIT", width=16, height=2, command=btn_quit, font=btn_font, fg="red").pack(pady=10)
+
+    window.mainloop()
+
+# ========================
 def main():
     GPIO.setmode(GPIO.BOARD)
     for p in ALL_PINS:
@@ -113,13 +165,16 @@ def main():
     print("Gripper control with Z axis")
     print("1) Manual mode")
     print("2) Auto mode (ROS2 placeholder)")
-    choice = input("Select mode (1/2): ").strip()
+    print("3) GUI mode")
+    choice = input("Select mode (1/2/3): ").strip()
 
     try:
         if choice == "1":
             manual_mode()
         elif choice == "2":
             auto_mode()
+        elif choice == "3":
+            gui_mode()
         else:
             print("Invalid selection")
     finally:
