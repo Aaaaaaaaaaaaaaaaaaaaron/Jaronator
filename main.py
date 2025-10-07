@@ -7,15 +7,14 @@ import Hobot.GPIO as GPIO
 # ========================
 # Pin configuration (BOARD numbering)
 # ========================
-PIN_X_IN1  = 11
-PIN_X_IN2  = 12
-PIN_Y_IN1  = 13
-PIN_Y_IN2  = 15
-PIN_Z_UP   = 29   # <<< noch anpassen
-PIN_Z_DOWN = 31   # <<< noch anpassen
-PIN_GRIP   = 7
-PIN_GRIP2  = 16   # optional zweiter Pin
-PIN_COIN   = 37   # Eingang fuer Coin-Signal
+PIN_X_IN1  = 7   # green (togehter with other cable)
+PIN_X_IN2  = 11  # yellow
+PIN_GRIP   = 12  # orange 
+PIN_Y_IN2  = 13  # red    
+PIN_Z_UP   = 15  # brown
+PIN_Z_DOWN = 16  # black
+PIN_Y_IN1  = 18  # white 
+PIN_GRIP2  = 22  # green (alone cable) 
 
 ALL_PINS = [
     PIN_X_IN1, PIN_X_IN2,
@@ -25,7 +24,7 @@ ALL_PINS = [
 ]
 
 # Track grip state
-grip_state = False   # False = LOW (offen), True = HIGH (geschlossen)
+grip_state = False   # False = LOW (open), True = HIGH (closed)
 
 # ========================
 def cleanup():
@@ -42,18 +41,18 @@ def stop_all():
 
 def move_x(direction, duration=0.5):
     stop_all()
-    if direction == "left":
+    if direction == "hin":   # towards outfeed
         GPIO.output(PIN_X_IN1, GPIO.HIGH)
-    elif direction == "right":
+    elif direction == "weg": # away from outfeed
         GPIO.output(PIN_X_IN2, GPIO.HIGH)
     time.sleep(duration)
     stop_all()
 
 def move_y(direction, duration=0.5):
     stop_all()
-    if direction == "forward":
+    if direction == "weg":   # away from outfeed
         GPIO.output(PIN_Y_IN1, GPIO.HIGH)
-    elif direction == "backward":
+    elif direction == "hin": # towards outfeed
         GPIO.output(PIN_Y_IN2, GPIO.HIGH)
     time.sleep(duration)
     stop_all()
@@ -77,20 +76,20 @@ def toggle_grip():
 # ========================
 def manual_mode():
     print("\nManual mode active")
-    print("Keys: w=forward s=back a=left d=right x=z-axis g=grip q=quit")
+    print("Keys: w=y weg  s=y hin  a=x hin  d=x weg  x=z-axis  g=grip  q=quit")
     while True:
         key = input(">> ").strip().lower()
         if key == "q":
             stop_all()
             break
         elif key == "w":
-            move_y("forward")
+            move_y("weg")
         elif key == "s":
-            move_y("backward")
+            move_y("hin")
         elif key == "a":
-            move_x("left")
+            move_x("hin")
         elif key == "d":
-            move_x("right")
+            move_x("weg")
         elif key == "x":
             # Down if grip LOW, Up if grip HIGH
             if grip_state:
@@ -103,40 +102,24 @@ def manual_mode():
             print("Invalid input")
 
 def auto_mode():
-    print("\nAuto mode started after coin insert")
-    # Hier kommt spaeter die ROS2 Logik hin
-    # Im Moment nur Dummy Bewegung
-    move_y("forward")
-    move_z("down")
-    toggle_grip()
-    move_z("up")
-    move_y("backward")
+    print("\nAuto mode placeholder for future ROS2 integration")
 
 # ========================
 def main():
     GPIO.setmode(GPIO.BOARD)
     for p in ALL_PINS:
         GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
-    GPIO.setup(PIN_COIN, GPIO.IN)
 
-    #print("Gripper control with Z axis and coin start")
+    print("Gripper control with Z axis")
     print("1) Manual mode")
-    print("2) Auto mode ")
-
+    print("2) Auto mode (ROS2 placeholder)")
     choice = input("Select mode (1/2): ").strip()
 
     try:
         if choice == "1":
             manual_mode()
         elif choice == "2":
-            print("Waiting for coin...")
-            last_state = 0
-            while True:
-                state = GPIO.input(PIN_COIN)
-                if state == 1 and last_state == 0:
-                    auto_mode()
-                last_state = state
-                time.sleep(0.05)
+            auto_mode()
         else:
             print("Invalid selection")
     finally:
