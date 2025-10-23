@@ -2,7 +2,6 @@
 import sys
 import signal
 import time
-import select
 import Hobot.GPIO as GPIO
 
 # ========================
@@ -19,9 +18,9 @@ PIN_GRIP2 = 16
 PIN_COIN = 37
 
 # Stop-taster mit externen Pull-Ups (aktiv LOW)
-PIN_STOP_X_LEFT = 31  # war 29
-PIN_STOP_Y_FORWARD = 29  # war 31
-PIN_STOP_X_RIGHT = 26
+PIN_STOP_X_LEFT = 31
+PIN_STOP_Y_FORWARD = 29
+PIN_STOP_X_RIGHT = 26 
 
 ALL_PINS = [
     PIN_X_IN1, PIN_X_IN2, PIN_Y_IN1, PIN_Y_IN2,
@@ -34,6 +33,13 @@ grip_state = False
 block_x_left = False
 block_x_right = False
 block_y_forward = False
+
+# Unsichtbarer Counter fuer move_x("right")
+_counter = 0
+_COUNTER_MIN = 0
+_COUNTER_MAX = 10
+_BLOCK_THRESHOLD = 10
+_UNLOCK_THRESHOLD = 9
 
 # ========================
 def cleanup():
@@ -49,9 +55,16 @@ def stop_all():
         GPIO.output(p, GPIO.LOW)
 
 def move_x(direction, duration=0.2):
+    global _counter
+    # Blockierung nach Counter
+    if direction == "right" and _counter >= _BLOCK_THRESHOLD:
+        return  # unsichtbar blockieren
+        
     if direction == "left" and block_x_left:
         print("X LEFT blockiert!")
         return stop_all()
+
+    stop_all()
     if direction == "left":
         GPIO.output(PIN_X_IN1, GPIO.HIGH)
     elif direction == "right":
@@ -61,11 +74,8 @@ def move_x(direction, duration=0.2):
 
 def move_y(direction, duration=0.2):
     if direction == "forward" and block_y_forward:
-        print("Y FORWARD blockiert!")
         return
-    if direction == "backward" and block_x_right:  # angepassen!!
-        print("X RIGHT blockiert!")
-        return stop_all()
+    stop_all()
     if direction == "forward":
         GPIO.output(PIN_Y_IN1, GPIO.HIGH)
     elif direction == "backward":
@@ -94,31 +104,38 @@ def toggle_grip():
 # ========================
 def check_stop_buttons():
     global block_x_left, block_x_right, block_y_forward
-    # Aktuelle Tasterzustaende
     x_left = GPIO.input(PIN_STOP_X_LEFT)
     y_forward = GPIO.input(PIN_STOP_Y_FORWARD)
     x_right = GPIO.input(PIN_STOP_X_RIGHT)
-    # Blockaden setzen oder loesen
     block_x_left = (x_left == 0)
     block_y_forward = (y_forward == 0)
     block_x_right = (x_right == 0)
 
 # ========================
 def manual_mode():
+    global _counter
     print("\nManual mode active")
     print("Keys: w=forward s=back a=left d=right v=z-axis g=grip y=down x=up q=quit")
+
     while True:
         check_stop_buttons()
         time.sleep(0.05)
+
         if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
             key = input(">> ").strip().lower()
             if key == "q":
                 stop_all()
                 break
             elif key == "w":
+                if _counter > _COUNTER_MIN:
+                    _counter -= 1
                 move_x("left")
             elif key == "s":
-                move_x("right")
+                if _counter < _BLOCK_THRESHOLD:
+                    _counter += 1
+                # move_x("right") nur erlauben wenn _counter < _BLOCK_THRESHOLD
+                if _counter < _BLOCK_THRESHOLD or _counter >= _UNLOCK_THRESHOLD:
+                    move_x("right")
             elif key == "a":
                 move_y("forward")
             elif key == "d":
@@ -152,7 +169,6 @@ def main():
     for p in ALL_PINS:
         GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(PIN_COIN, GPIO.IN)
-    # Stop-Taster Eingange (externe Pull-Ups)
     GPIO.setup(PIN_STOP_X_LEFT, GPIO.IN)
     GPIO.setup(PIN_STOP_Y_FORWARD, GPIO.IN)
     GPIO.setup(PIN_STOP_X_RIGHT, GPIO.IN)
@@ -160,6 +176,7 @@ def main():
     print("1) Manual mode")
     print("2) Auto mode ")
     choice = input("Select mode (1/2): ").strip()
+
     try:
         if choice == "1":
             manual_mode()
@@ -179,5 +196,6 @@ def main():
         cleanup()
 
 if __name__ == "__main__":
+    import select
     signal.signal(signal.SIGINT, signal_handler)
     main()
