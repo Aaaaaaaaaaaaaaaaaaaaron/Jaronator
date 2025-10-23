@@ -3,19 +3,19 @@ import sys
 import signal
 import time
 import Hobot.GPIO as GPIO
-import tkinter as tk
 
 # ========================
 # Pin configuration (BOARD numbering)
 # ========================
-PIN_X_IN1  = 7   # green (togehter with other cable)
-PIN_X_IN2  = 11  # yellow
-PIN_GRIP   = 12  # orange 
-PIN_Y_IN2  = 13  # red    
-PIN_Z_UP   = 15  # brown
-PIN_Z_DOWN = 16  # black
-PIN_Y_IN1  = 18  # white 
-PIN_GRIP2  = 22  # green (alone cable) 
+PIN_X_IN1  = 11   # yellow
+PIN_X_IN2  = 12   # orange
+PIN_Y_IN1  = 13   # red
+PIN_Y_IN2  = 15   # brown
+PIN_Z_UP   = 18   # white (was 29)
+PIN_Z_DOWN = 22   # black (was 31)
+PIN_GRIP   = 7	  # green alone
+PIN_GRIP2  = 16   # optional zweiter Pin aber stillgelegt
+PIN_COIN   = 37   # grey-white Eingang fuer Coin-Signal
 
 ALL_PINS = [
     PIN_X_IN1, PIN_X_IN2,
@@ -25,7 +25,7 @@ ALL_PINS = [
 ]
 
 # Track grip state
-grip_state = False   # False = LOW (open), True = HIGH (closed)
+grip_state = False   # False = LOW (offen), True = HIGH (geschlossen)
 
 # ========================
 def cleanup():
@@ -40,25 +40,25 @@ def stop_all():
     for p in [PIN_X_IN1, PIN_X_IN2, PIN_Y_IN1, PIN_Y_IN2, PIN_Z_UP, PIN_Z_DOWN]:
         GPIO.output(p, GPIO.LOW)
 
-def move_x(direction, duration=0.5):
+def move_x(direction, duration=0.2):
     stop_all()
-    if direction == "hin":
+    if direction == "left":
         GPIO.output(PIN_X_IN1, GPIO.HIGH)
-    elif direction == "weg":
+    elif direction == "right":
         GPIO.output(PIN_X_IN2, GPIO.HIGH)
     time.sleep(duration)
     stop_all()
 
-def move_y(direction, duration=0.5):
+def move_y(direction, duration=0.2):
     stop_all()
-    if direction == "weg":
+    if direction == "forward":
         GPIO.output(PIN_Y_IN1, GPIO.HIGH)
-    elif direction == "hin":
+    elif direction == "backward":
         GPIO.output(PIN_Y_IN2, GPIO.HIGH)
     time.sleep(duration)
     stop_all()
 
-def move_z(direction, duration=0.5):
+def move_z(direction, duration=0.2):
     stop_all()
     if direction == "up":
         GPIO.output(PIN_Z_UP, GPIO.HIGH)
@@ -77,104 +77,70 @@ def toggle_grip():
 # ========================
 def manual_mode():
     print("\nManual mode active")
-    print("Keys: w=forward s=back a=left d=right x=z-axis g=grip q=quit")
+    print("Keys: w=forward s=back a=left d=right v=z-axis g=grip y=down x=up q=quit")
     while True:
         key = input(">> ").strip().lower()
         if key == "q":
             stop_all()
             break
         elif key == "w":
-            move_y("weg")
+            move_x("left")
         elif key == "s":
-            move_y("hin")
+            move_x("right")
         elif key == "a":
-            move_x("hin")
+            move_y("forward")
         elif key == "d":
-            move_x("weg")
-        elif key == "x":
+            move_y("backward")
+        elif key == "v":
+            # Down if grip LOW, Up if grip HIGH
             if grip_state:
                 move_z("up")
             else:
                 move_z("down")
         elif key == "g":
             toggle_grip()
+        elif key == "y":
+            move_z("down")
+        elif key == "x":
+            move_z("up")
         else:
             print("Invalid input")
 
 def auto_mode():
-    print("\nAuto mode placeholder for future ROS2 integration")
-
-# ========================
-def gui_mode():
-    window = tk.Tk()
-    window.title("Gripper Control GUI")
-    window.geometry("400x400")
-    window.configure(bg="#202020")
-
-    def btn_move_y_weg():
-        move_y("weg")
-
-    def btn_move_y_hin():
-        move_y("hin")
-
-    def btn_move_x_hin():
-        move_x("hin")
-
-    def btn_move_x_weg():
-        move_x("weg")
-
-    def btn_z_axis():
-        if grip_state:
-            move_z("up")
-        else:
-            move_z("down")
-
-    def btn_grip():
-        toggle_grip()
-
-    def btn_quit():
-        stop_all()
-        cleanup()
-        window.destroy()
-
-    tk.Label(window, text="Gripper Control", font=("Arial", 16), fg="white", bg="#202020").pack(pady=10)
-
-    frame = tk.Frame(window, bg="#202020")
-    frame.pack(pady=20)
-
-    btn_font = ("Arial", 14)
-
-    tk.Button(frame, text="Y weg (W)", width=12, height=2, command=btn_move_y_weg, font=btn_font).grid(row=0, column=1, padx=5, pady=5)
-    tk.Button(frame, text="X hin (A)", width=12, height=2, command=btn_move_x_hin, font=btn_font).grid(row=1, column=0, padx=5, pady=5)
-    tk.Button(frame, text="STOP", width=12, height=2, command=stop_all, font=btn_font, fg="red").grid(row=1, column=1, padx=5, pady=5)
-    tk.Button(frame, text="X weg (D)", width=12, height=2, command=btn_move_x_weg, font=btn_font).grid(row=1, column=2, padx=5, pady=5)
-    tk.Button(frame, text="Y hin (S)", width=12, height=2, command=btn_move_y_hin, font=btn_font).grid(row=2, column=1, padx=5, pady=5)
-
-    tk.Button(window, text="Z-Achse (X)", width=16, height=2, command=btn_z_axis, font=btn_font).pack(pady=5)
-    tk.Button(window, text="Grip (G)", width=16, height=2, command=btn_grip, font=btn_font).pack(pady=5)
-    tk.Button(window, text="QUIT", width=16, height=2, command=btn_quit, font=btn_font, fg="red").pack(pady=10)
-
-    window.mainloop()
+    print("\nAuto mode started after coin insert")
+    # Hier kommt spaeter die ROS2 Logik hin
+    # Im Moment nur Dummy Bewegung
+    move_y("forward")
+    move_z("down")
+    toggle_grip()
+    move_z("up")
+    move_y("backward")
 
 # ========================
 def main():
     GPIO.setmode(GPIO.BOARD)
     for p in ALL_PINS:
         GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(PIN_COIN, GPIO.IN)
 
-    print("Gripper control with Z axis")
+    #print("Gripper control with Z axis and coin start")
     print("1) Manual mode")
-    print("2) Auto mode (ROS2 placeholder)")
-    print("3) GUI mode")
-    choice = input("Select mode (1/2/3): ").strip()
+    print("2) Auto mode ")
+
+    choice = input("Select mode (1/2): ").strip()
 
     try:
         if choice == "1":
             manual_mode()
         elif choice == "2":
-            auto_mode()
-        elif choice == "3":
-            gui_mode()
+            print("Waiting for coin...")
+            last_state = 0
+            while True:
+                state = GPIO.input(PIN_COIN)
+                if state == 1 and last_state == 0:
+                    auto_mode()
+                last_state = state
+                time.sleep(0.05)
         else:
             print("Invalid selection")
     finally:
