@@ -37,9 +37,9 @@ block_y_forward = False
 # Unsichtbarer Counter fuer move_x("right")
 _counter = 0
 _COUNTER_MIN = 0
-_COUNTER_MAX = 10
-_BLOCK_THRESHOLD = 10
-_UNLOCK_THRESHOLD = 9
+_COUNTER_MAX = 9
+_BLOCK_THRESHOLD = 9
+_UNLOCK_THRESHOLD = 8
 
 # ========================
 def cleanup():
@@ -56,14 +56,11 @@ def stop_all():
 
 def move_x(direction, duration=0.2):
     global _counter
-    # Blockierung nach Counter
     if direction == "right" and _counter >= _BLOCK_THRESHOLD:
-        return  # unsichtbar blockieren
-        
+        return
     if direction == "left" and block_x_left:
         print("X LEFT blockiert!")
         return stop_all()
-
     stop_all()
     if direction == "left":
         GPIO.output(PIN_X_IN1, GPIO.HIGH)
@@ -74,7 +71,7 @@ def move_x(direction, duration=0.2):
 
 def move_y(direction, duration=0.2):
     if direction == "forward" and block_y_forward:
-        return
+        return stop_all()
     stop_all()
     if direction == "forward":
         GPIO.output(PIN_Y_IN1, GPIO.HIGH)
@@ -127,15 +124,13 @@ def manual_mode():
                 stop_all()
                 break
             elif key == "w":
-                if _counter > _COUNTER_MIN:
-                    _counter -= 1
                 move_x("left")
+                if _counter > _COUNTER_MIN:
+                    _counter -= 1  # Counter erst nach Move reduzieren
             elif key == "s":
-                if _counter < _BLOCK_THRESHOLD:
-                    _counter += 1
-                # move_x("right") nur erlauben wenn _counter < _BLOCK_THRESHOLD
-                if _counter < _BLOCK_THRESHOLD or _counter >= _UNLOCK_THRESHOLD:
+                if _counter < _BLOCK_THRESHOLD:  # Move nur erlauben, wenn Counter < Threshold
                     move_x("right")
+                    _counter += 1  # Counter erst nach Move erhoehen
             elif key == "a":
                 move_y("forward")
             elif key == "d":
