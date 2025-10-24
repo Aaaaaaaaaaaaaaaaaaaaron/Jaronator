@@ -2,7 +2,11 @@
 import sys
 import signal
 import time
+import os
+import tkinter as tk
+from PIL import Image, ImageTk
 import Hobot.GPIO as GPIO
+import select
 
 # ========================
 # Pin configuration (BOARD numbering)
@@ -17,7 +21,7 @@ PIN_GRIP = 7
 PIN_GRIP2 = 16
 PIN_COIN = 37
 
-# Stop-taster mit externen Pull-Ups (aktiv LOW)
+# Stop-taster (aktiv LOW)
 PIN_STOP_X_LEFT = 31
 PIN_STOP_Y_FORWARD = 29
 PIN_STOP_X_RIGHT = 26 
@@ -27,20 +31,19 @@ ALL_PINS = [
     PIN_Z_UP, PIN_Z_DOWN, PIN_GRIP, PIN_GRIP2
 ]
 
+# Zustandsvariablen
 grip_state = False
-
-# Motor-Richtungsblockaden
 block_x_left = False
 block_x_right = False
 block_y_forward = False
-
-# Unsichtbarer Counter fuer move_x("right")
 _counter = 0
 _COUNTER_MIN = 0
 _COUNTER_MAX = 9
 _BLOCK_THRESHOLD = 9
 _UNLOCK_THRESHOLD = 8
 
+# ========================
+# GPIO / Bewegungsfunktionen
 # ========================
 def cleanup():
     GPIO.cleanup()
@@ -53,13 +56,15 @@ def signal_handler(sig, frame):
 def stop_all():
     for p in [PIN_X_IN1, PIN_X_IN2, PIN_Y_IN1, PIN_Y_IN2, PIN_Z_UP, PIN_Z_DOWN]:
         GPIO.output(p, GPIO.LOW)
-
+        
 def move_x(direction, duration=0.2):
     global _counter
+    check_stop_buttons()
     if direction == "right" and _counter >= _BLOCK_THRESHOLD:
+        print("X BACKWARD blockiert!")
         return
     if direction == "left" and block_x_left:
-        print("X LEFT blockiert!")
+        print("X FORWARD blockiert!")
         return stop_all()
     stop_all()
     if direction == "left":
@@ -70,7 +75,12 @@ def move_x(direction, duration=0.2):
     stop_all()
 
 def move_y(direction, duration=0.2):
+    check_stop_buttons()
     if direction == "forward" and block_y_forward:
+        print("Y LEFT blockiert!")
+        return stop_all()
+    if direction == "backward" and block_x_right :
+        print("Y RIGHT blockiert!")
         return stop_all()
     stop_all()
     if direction == "forward":
@@ -97,15 +107,11 @@ def toggle_grip():
     print("Grip HIGH" if grip_state else "Grip LOW")
     
 def arm_setup():
-    while  not block_x_left:
-        move_x("left",0.25)
-        #print("ein schritt")
+    while not block_x_left:
+        move_x("left", 0.25)
         check_stop_buttons()
         time.sleep(0.005)
         
-# ========================
-# Stop-Taster Ueberwachung
-# ========================
 def check_stop_buttons():
     global block_x_left, block_x_right, block_y_forward
     x_left = GPIO.input(PIN_STOP_X_LEFT)
@@ -116,18 +122,15 @@ def check_stop_buttons():
     block_x_right = (x_right == 0)
 
 # ========================
+# Modi
+# ========================
 def manual_mode():
     global _counter
-    print("\nManual mode active")
-    print("Keys: w=forward s=back a=left d=right v=z-axis g=grip y=down x=up q=quit")
-    
+    print("\nManual mode active (Touchscreen oder Konsole)")
     arm_setup()
-    
-    
     while True:
         check_stop_buttons()
         time.sleep(0.05)
-
         if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
             key = input(">> ").strip().lower()
             if key == "q":
@@ -136,11 +139,11 @@ def manual_mode():
             elif key == "w":
                 move_x("left")
                 if _counter > _COUNTER_MIN:
-                    _counter -= 1  # Counter erst nach Move reduzieren
+                    _counter -= 1
             elif key == "s":
-                if _counter < _BLOCK_THRESHOLD:  # Move nur erlauben, wenn Counter < Threshold
+                if _counter < _BLOCK_THRESHOLD:
                     move_x("right")
-                    _counter += 1  # Counter erst nach Move erhoehen
+                    _counter += 1
             elif key == "a":
                 move_y("forward")
             elif key == "d":
@@ -168,39 +171,163 @@ def auto_mode():
     move_y("backward")
 
 # ========================
-def main():
-    GPIO.cleanup()
-    GPIO.setmode(GPIO.BOARD)
-    for p in ALL_PINS:
-        GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
-    GPIO.setup(PIN_COIN, GPIO.IN)
-    GPIO.setup(PIN_STOP_X_LEFT, GPIO.IN)
-    GPIO.setup(PIN_STOP_Y_FORWARD, GPIO.IN)
-    GPIO.setup(PIN_STOP_X_RIGHT, GPIO.IN)
+# GUI-Klasse
+# ========================
+class GripperGUI:
+    def __init__(self):
+        signal.signal(signal.SIGINT, signal_handler)
+        self.setup_gpio()
 
-    print("1) Manual mode")
-    print("2) Auto mode ")
-    choice = input("Select mode (1/2): ").strip()
+        self.window = tk.Tk()
+        self.window.title("Gripper Control Menu")
+        self.window.geometry("960x540")
 
-    try:
-        if choice == "1":
-            manual_mode()
-        elif choice == "2":
-            print("Waiting for coin...")
-            last_state = 0
-            while True:
-                state = GPIO.input(PIN_COIN)
-                if state == 1 and last_state == 0:
-                    auto_mode()
-                last_state = state
-                time.sleep(0.05)
+        self.bg = None
+        bg_path = "/app/jaronator/background/"
+        bg_file = None
+        if os.path.isdir(bg_path):
+            for file in os.listdir(bg_path):
+                if file.lower().endswith((".png", ".jpg", ".jpeg")):
+                    bg_file = os.path.join(bg_path, file)
+                    break
+        if bg_file:
+            img = Image.open(bg_file)
+            img = img.resize((960, 540))
+            self.bg = ImageTk.PhotoImage(img)
+            bg_label = tk.Label(self.window, image=self.bg)
+            bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         else:
-            print("Invalid selection")
-    finally:
+            self.window.configure(bg="#202020")
+
+        self.show_main_menu()
+        self.window.mainloop()
+    
+    def _decrement_counter(self):
+        global _counter
+        if _counter > _COUNTER_MIN:
+            _counter -= 1
+
+    def _increment_counter(self):
+        global _counter
+        if _counter < _BLOCK_THRESHOLD:
+            _counter += 1
+            
+    def setup_gpio(self):
+        GPIO.cleanup()
+        GPIO.setmode(GPIO.BOARD)
+        for p in ALL_PINS:
+            GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.setup(PIN_COIN, GPIO.IN)
+        GPIO.setup(PIN_STOP_X_LEFT, GPIO.IN)
+        GPIO.setup(PIN_STOP_Y_FORWARD, GPIO.IN)
+        GPIO.setup(PIN_STOP_X_RIGHT, GPIO.IN)
+
+    def clear_window(self):
+        for widget in self.window.winfo_children():
+            widget.destroy()
+            
+    def arm_setup():
+        while not block_x_left:
+            move_x("left", 0.25)
+            check_stop_buttons()
+            time.sleep(0.005)
+
+    def show_main_menu(self):
+        self.clear_window()
+        if self.bg:
+            bg_label = tk.Label(self.window, image=self.bg)
+            bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+        else:
+            self.window.configure(bg="#202020")
+
+        btn_font = ("Arial", 14)
+        tk.Label(self.window, text="Gripper Control - Hauptmenue",
+                 font=("Arial", 18), bg="#202020", fg="white").pack(pady=40)
+        tk.Button(self.window, text="Automatik Mode", width=20, height=2,
+                  font=btn_font, command=self.start_auto_mode).pack(pady=10)
+        tk.Button(self.window, text="Kamera Mode (Coming Soon)", width=20, height=2,
+                  font=btn_font, command=self.start_camera_mode).pack(pady=10)
+        tk.Button(self.window, text="Manual Mode", width=20, height=2,
+                  font=btn_font, command=self.start_manual_mode).pack(pady=10)
+        tk.Button(self.window, text="EXIT", width=20, height=2,
+                  font=btn_font, fg="red", command=self.exit_program).pack(pady=40)
+
+    def show_mode_screen(self, mode_name, start_function):
+        self.clear_window()
+        if self.bg:
+            bg_label = tk.Label(self.window, image=self.bg)
+            bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+        else:
+            self.window.configure(bg="#202020")
+
+        tk.Label(self.window, text=mode_name,
+                 font=("Arial", 18), bg="#202020", fg="white").pack(pady=30)
+        tk.Button(self.window, text="Start", width=20, height=2,
+                  font=("Arial", 14), command=start_function).pack(pady=10)
+        tk.Button(self.window, text="Zurueck zum Menu", width=20, height=2,
+                  font=("Arial", 14), command=self.show_main_menu).pack(pady=20)
+        tk.Button(self.window, text="EXIT", width=20, height=2,
+                  font=("Arial", 14), fg="red", command=self.exit_program).pack(pady=40)
+
+    def start_auto_mode(self):
+        arm_setup()
+        self.show_mode_screen("Automatik Mode", self.run_auto_mode)
+
+    def start_manual_mode(self):
+        arm_setup()
+        self.show_mode_screen("Manual Mode", self.run_manual_mode)
+
+    def start_camera_mode(self):
+        self.show_mode_screen("Kamera Mode", lambda: print("Kamera Mode folgt spaeter."))
+
+    def run_auto_mode(self):
+        self.clear_window()
+        tk.Label(self.window, text="Automatik laeuft...", font=("Arial", 16), bg="#202020", fg="white").pack(pady=30)
+        self.window.update()
+        auto_mode()
+
+    # >>> NEU: Touchscreen-Steuerung fuer Manual Mode <<<
+    def run_manual_mode(self):
+        self.clear_window()
+        tk.Label(self.window, text="Manual Mode aktiv", font=("Arial", 18), bg="#202020", fg="white").pack(pady=10)
+
+        btn_font = ("Arial", 14)
+        frame = tk.Frame(self.window, bg="#202020")
+        frame.pack(pady=10)
+
+        tk.Button(frame, text="Left", width=10, height=2, font=btn_font,
+                  command=lambda: move_y("forward")).grid(row=1, column=0, padx=10, pady=10)
+                  
+        tk.Button(frame, text="Right", width=10, height=2, font=btn_font,
+                  command=lambda: move_y("backward")).grid(row=1, column=2, padx=10, pady=10)
+                  
+        tk.Button(frame, text="Forward", width=10, height=2, font=btn_font,
+                  command=lambda: [move_x("left"), self._decrement_counter()]).grid(row=0, column=1, padx=10, pady=10)
+                  
+        tk.Button(frame, text="Backward", width=10, height=2, font=btn_font,
+                  command=lambda: [move_x("right"), self._increment_counter()]).grid(row=2, column=1, padx=10, pady=10)
+
+        tk.Button(frame, text="Up", width=10, height=2, font=btn_font,
+                  command=lambda: move_z("up")).grid(row=0, column=3, padx=10, pady=10)
+        tk.Button(frame, text="Down", width=10, height=2, font=btn_font,
+                  command=lambda: move_z("down")).grid(row=2, column=3, padx=10, pady=10)
+
+        tk.Button(frame, text="Grip", width=10, height=2, font=btn_font,
+                  command=toggle_grip).grid(row=1, column=3, padx=10, pady=10)
+
+        tk.Button(self.window, text="Zurueck", width=20, height=2, font=btn_font,
+                  command=self.show_main_menu).pack(pady=20)
+        tk.Button(self.window, text="EXIT", width=20, height=2, font=btn_font,
+                  fg="red", command=self.exit_program).pack(pady=10)
+
+    # ===================================================
+    def exit_program(self):
         stop_all()
         cleanup()
+        self.window.destroy()
 
+# ========================
+# Start GUI
+# ========================
 if __name__ == "__main__":
-    import select
-    signal.signal(signal.SIGINT, signal_handler)
-    main()
+    GripperGUI()
