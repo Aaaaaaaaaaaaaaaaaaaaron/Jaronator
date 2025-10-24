@@ -95,7 +95,14 @@ def toggle_grip():
     GPIO.output(PIN_GRIP, GPIO.HIGH if grip_state else GPIO.LOW)
     GPIO.output(PIN_GRIP2, GPIO.HIGH if grip_state else GPIO.LOW)
     print("Grip HIGH" if grip_state else "Grip LOW")
-
+    
+def arm_setup():
+    while  not block_x_left:
+        move_x("left",0.25)
+        #print("ein schritt")
+        check_stop_buttons()
+        time.sleep(0.005)
+        
 # ========================
 # Stop-Taster Ueberwachung
 # ========================
@@ -113,7 +120,10 @@ def manual_mode():
     global _counter
     print("\nManual mode active")
     print("Keys: w=forward s=back a=left d=right v=z-axis g=grip y=down x=up q=quit")
-
+    
+    arm_setup()
+    
+    
     while True:
         check_stop_buttons()
         time.sleep(0.05)
