@@ -20,11 +20,10 @@ PIN_Z_DOWN = 22
 PIN_GRIP = 7
 PIN_GRIP2 = 16
 PIN_COIN = 37
-
 # Stop-taster (aktiv LOW)
 PIN_STOP_X_LEFT = 31
 PIN_STOP_Y_FORWARD = 29
-PIN_STOP_X_RIGHT = 26 
+PIN_STOP_X_RIGHT = 26
 
 ALL_PINS = [
     PIN_X_IN1, PIN_X_IN2, PIN_Y_IN1, PIN_Y_IN2,
@@ -56,7 +55,7 @@ def signal_handler(sig, frame):
 def stop_all():
     for p in [PIN_X_IN1, PIN_X_IN2, PIN_Y_IN1, PIN_Y_IN2, PIN_Z_UP, PIN_Z_DOWN]:
         GPIO.output(p, GPIO.LOW)
-        
+
 def move_x(direction, duration=0.2):
     global _counter
     check_stop_buttons()
@@ -65,7 +64,7 @@ def move_x(direction, duration=0.2):
         return
     if direction == "left" and block_x_left:
         print("X FORWARD blockiert!")
-        return stop_all()
+        return
     stop_all()
     if direction == "left":
         GPIO.output(PIN_X_IN1, GPIO.HIGH)
@@ -78,10 +77,10 @@ def move_y(direction, duration=0.2):
     check_stop_buttons()
     if direction == "forward" and block_y_forward:
         print("Y LEFT blockiert!")
-        return stop_all()
+        return
     if direction == "backward" and block_x_right :
         print("Y RIGHT blockiert!")
-        return stop_all()
+        return
     stop_all()
     if direction == "forward":
         GPIO.output(PIN_Y_IN1, GPIO.HIGH)
@@ -105,13 +104,15 @@ def toggle_grip():
     GPIO.output(PIN_GRIP, GPIO.HIGH if grip_state else GPIO.LOW)
     GPIO.output(PIN_GRIP2, GPIO.HIGH if grip_state else GPIO.LOW)
     print("Grip HIGH" if grip_state else "Grip LOW")
-    
+
 def arm_setup():
+    global _counter
     while not block_x_left:
         move_x("left", 0.25)
         check_stop_buttons()
+        _counter = 0
         time.sleep(0.005)
-        
+
 def check_stop_buttons():
     global block_x_left, block_x_right, block_y_forward
     x_left = GPIO.input(PIN_STOP_X_LEFT)
@@ -177,11 +178,9 @@ class GripperGUI:
     def __init__(self):
         signal.signal(signal.SIGINT, signal_handler)
         self.setup_gpio()
-
         self.window = tk.Tk()
         self.window.title("Gripper Control Menu")
         self.window.geometry("960x540")
-
         self.bg = None
         bg_path = "/app/jaronator/background/"
         bg_file = None
@@ -198,10 +197,10 @@ class GripperGUI:
             bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         else:
             self.window.configure(bg="#202020")
-
+        arm_setup()
         self.show_main_menu()
         self.window.mainloop()
-    
+
     def _decrement_counter(self):
         global _counter
         if _counter > _COUNTER_MIN:
@@ -211,7 +210,7 @@ class GripperGUI:
         global _counter
         if _counter < _BLOCK_THRESHOLD:
             _counter += 1
-            
+
     def setup_gpio(self):
         GPIO.cleanup()
         GPIO.setmode(GPIO.BOARD)
@@ -225,8 +224,10 @@ class GripperGUI:
     def clear_window(self):
         for widget in self.window.winfo_children():
             widget.destroy()
-            
-    def arm_setup():
+
+    def arm_setup(self):
+        global _counter
+        _counter = 0
         while not block_x_left:
             move_x("left", 0.25)
             check_stop_buttons()
@@ -239,18 +240,12 @@ class GripperGUI:
             bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         else:
             self.window.configure(bg="#202020")
-
         btn_font = ("Arial", 14)
-        tk.Label(self.window, text="Gripper Control - Hauptmenue",
-                 font=("Arial", 18), bg="#202020", fg="white").pack(pady=40)
-        tk.Button(self.window, text="Automatik Mode", width=20, height=2,
-                  font=btn_font, command=self.start_auto_mode).pack(pady=10)
-        tk.Button(self.window, text="Kamera Mode (Coming Soon)", width=20, height=2,
-                  font=btn_font, command=self.start_camera_mode).pack(pady=10)
-        tk.Button(self.window, text="Manual Mode", width=20, height=2,
-                  font=btn_font, command=self.start_manual_mode).pack(pady=10)
-        tk.Button(self.window, text="EXIT", width=20, height=2,
-                  font=btn_font, fg="red", command=self.exit_program).pack(pady=40)
+        tk.Label(self.window, text="Gripper Control - Hauptmenue", font=("Arial", 18), bg="#202020", fg="white").pack(pady=40)
+        tk.Button(self.window, text="Automatik Mode", width=20, height=2, font=btn_font, command=self.start_auto_mode).pack(pady=10)
+        tk.Button(self.window, text="Kamera Mode (Coming Soon)", width=20, height=2, font=btn_font, command=self.start_camera_mode).pack(pady=10)
+        tk.Button(self.window, text="Manual Mode", width=20, height=2, font=btn_font, command=self.start_manual_mode).pack(pady=10)
+        tk.Button(self.window, text="EXIT", width=20, height=2, font=btn_font, fg="red", command=self.exit_program).pack(pady=40)
 
     def show_mode_screen(self, mode_name, start_function):
         self.clear_window()
@@ -259,22 +254,16 @@ class GripperGUI:
             bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         else:
             self.window.configure(bg="#202020")
+        tk.Label(self.window, text=mode_name, font=("Arial", 18), bg="#202020", fg="white").pack(pady=30)
+        tk.Button(self.window, text="Start", width=20, height=2, font=("Arial", 14), command=start_function).pack(pady=10)
+        tk.Button(self.window, text="Zurueck zum Menu", width=20, height=2, font=("Arial", 14), command=self.show_main_menu).pack(pady=20)
+        tk.Button(self.window, text="EXIT", width=20, height=2, font=("Arial", 14), fg="red", command=self.exit_program).pack(pady=40)
 
-        tk.Label(self.window, text=mode_name,
-                 font=("Arial", 18), bg="#202020", fg="white").pack(pady=30)
-        tk.Button(self.window, text="Start", width=20, height=2,
-                  font=("Arial", 14), command=start_function).pack(pady=10)
-        tk.Button(self.window, text="Zurueck zum Menu", width=20, height=2,
-                  font=("Arial", 14), command=self.show_main_menu).pack(pady=20)
-        tk.Button(self.window, text="EXIT", width=20, height=2,
-                  font=("Arial", 14), fg="red", command=self.exit_program).pack(pady=40)
-
+    # >>> start_auto_mode ist Kopie von start_manual_mode mit Zwischenbildschirm und Coin-Wartefunktion <<<
     def start_auto_mode(self):
-        arm_setup()
-        self.show_mode_screen("Automatik Mode", self.run_auto_mode)
+        self.show_mode_screen("Automatik Mode", self.run_auto_as_manual)
 
     def start_manual_mode(self):
-        arm_setup()
         self.show_mode_screen("Manual Mode", self.run_manual_mode)
 
     def start_camera_mode(self):
@@ -284,41 +273,76 @@ class GripperGUI:
         self.clear_window()
         tk.Label(self.window, text="Automatik laeuft...", font=("Arial", 16), bg="#202020", fg="white").pack(pady=30)
         self.window.update()
-        auto_mode()
+        run_manual_mode()
 
-    # >>> NEU: Touchscreen-Steuerung fuer Manual Mode <<<
     def run_manual_mode(self):
         self.clear_window()
         tk.Label(self.window, text="Manual Mode aktiv", font=("Arial", 18), bg="#202020", fg="white").pack(pady=10)
-
         btn_font = ("Arial", 14)
         frame = tk.Frame(self.window, bg="#202020")
         frame.pack(pady=10)
+        tk.Button(frame, text="Left", width=10, height=2, font=btn_font, command=lambda: move_y("forward")).grid(row=1, column=0, padx=10, pady=10)
+        tk.Button(frame, text="Right", width=10, height=2, font=btn_font, command=lambda: move_y("backward")).grid(row=1, column=2, padx=10, pady=10)
+        tk.Button(frame, text="Forward", width=10, height=2, font=btn_font, command=lambda: [move_x("left"), self._decrement_counter()]).grid(row=0, column=1, padx=10, pady=10)
+        tk.Button(frame, text="Backward", width=10, height=2, font=btn_font, command=lambda: [move_x("right"), self._increment_counter()]).grid(row=2, column=1, padx=10, pady=10)
+        tk.Button(frame, text="Up", width=10, height=2, font=btn_font, command=lambda: move_z("up")).grid(row=0, column=3, padx=10, pady=10)
+        tk.Button(frame, text="Down", width=10, height=2, font=btn_font, command=lambda: move_z("down")).grid(row=2, column=3, padx=10, pady=10)
+        tk.Button(frame, text="Grip", width=10, height=2, font=btn_font, command=toggle_grip).grid(row=1, column=3, padx=10, pady=10)
+        tk.Button(self.window, text="Zurueck", width=20, height=2, font=btn_font, command=self.show_main_menu).pack(pady=20)
+        tk.Button(self.window, text="EXIT", width=20, height=2, font=btn_font, fg="red", command=self.exit_program).pack(pady=10)
 
-        tk.Button(frame, text="Left", width=10, height=2, font=btn_font,
-                  command=lambda: move_y("forward")).grid(row=1, column=0, padx=10, pady=10)
-                  
-        tk.Button(frame, text="Right", width=10, height=2, font=btn_font,
-                  command=lambda: move_y("backward")).grid(row=1, column=2, padx=10, pady=10)
-                  
-        tk.Button(frame, text="Forward", width=10, height=2, font=btn_font,
-                  command=lambda: [move_x("left"), self._decrement_counter()]).grid(row=0, column=1, padx=10, pady=10)
-                  
-        tk.Button(frame, text="Backward", width=10, height=2, font=btn_font,
-                  command=lambda: [move_x("right"), self._increment_counter()]).grid(row=2, column=1, padx=10, pady=10)
-
-        tk.Button(frame, text="Up", width=10, height=2, font=btn_font,
-                  command=lambda: move_z("up")).grid(row=0, column=3, padx=10, pady=10)
-        tk.Button(frame, text="Down", width=10, height=2, font=btn_font,
-                  command=lambda: move_z("down")).grid(row=2, column=3, padx=10, pady=10)
-
-        tk.Button(frame, text="Grip", width=10, height=2, font=btn_font,
-                  command=toggle_grip).grid(row=1, column=3, padx=10, pady=10)
-
-        tk.Button(self.window, text="Zurueck", width=20, height=2, font=btn_font,
-                  command=self.show_main_menu).pack(pady=20)
-        tk.Button(self.window, text="EXIT", width=20, height=2, font=btn_font,
-                  fg="red", command=self.exit_program).pack(pady=10)
+    # >>> NEU: run_auto_as_manual mit Zwischenbildschirm und Coin-Wartefunktion <<<
+    def run_auto_as_manual(self):
+        self.clear_window()
+        tk.Label(self.window, text="Automatik Mode - Warte auf Coin...", font=("Arial", 16), bg="#202020", fg="white").pack(pady=20)
+        btn_font = ("Arial", 14)
+        tk.Button(self.window, text="Zurueck zum Menu", width=20, height=2, font=btn_font, command=self.show_main_menu).pack(pady=10)
+        self.window.update()
+        # Warten auf Coin Detection (negative Flanke)
+        while GPIO.input(PIN_COIN) != 0:
+            self.window.update()
+            time.sleep(0.05)
+        # Coin erkannt, Buttons freigegeben
+        tk.Label(self.window, text="Coin erkannt - Automatik startet!", font=("Arial", 16), bg="#202020", fg="white").pack(pady=10)
+        self.window.update()
+        while True:
+            #gleicher code wie manuel mode hier rein:
+            #self.clear_window()
+            tk.Label(self.window, text="Manual Mode aktiv", font=("Arial", 18), bg="#202020", fg="white").pack(pady=10)
+            btn_font = ("Arial", 14)
+            frame = tk.Frame(self.window, bg="#202020")
+            frame.pack(pady=10)
+            tk.Button(frame, text="Left", width=10, height=2, font=btn_font, command=lambda: move_y("forward")).grid(row=1, column=0, padx=10, pady=10)
+            tk.Button(frame, text="Right", width=10, height=2, font=btn_font, command=lambda: move_y("backward")).grid(row=1, column=2, padx=10, pady=10)
+            tk.Button(frame, text="Forward", width=10, height=2, font=btn_font, command=lambda: [move_x("left"), self._decrement_counter()]).grid(row=0, column=1, padx=10, pady=10)
+            tk.Button(frame, text="Backward", width=10, height=2, font=btn_font, command=lambda: [move_x("right"), self._increment_counter()]).grid(row=2, column=1, padx=10, pady=10)
+            tk.Button(frame, text="Up", width=10, height=2, font=btn_font, command=lambda: move_z("up")).grid(row=0, column=3, padx=10, pady=10)
+            tk.Button(frame, text="Down", width=10, height=2, font=btn_font, command=lambda: move_z("down")).grid(row=2, column=3, padx=10, pady=10)
+            tk.Button(frame, text="Grip", width=10, height=2, font=btn_font, command=toggle_grip).grid(row=1, column=3, padx=10, pady=10)
+            tk.Button(self.window, text="ZurÃ¼ck", width=20, height=2, font=btn_font, command=self.show_main_menu).pack(pady=20)
+            tk.Button(self.window, text="EXIT", width=20, height=2, font=btn_font, fg="red", command=self.exit_program).pack(pady=10)
+            
+            
+            self.window.update()
+            # Wechsel zum Zwischenbildschirm, falls Grip betatigt
+            if grip_state:
+                self.clear_window() # Automatisch zum Auswurf
+                while not counter == 9:
+                    move_x("right")
+                    self._increment_counter()
+                while not block_y_forward:
+                    Smove_y("forward")
+                
+                toggle_grip
+                tk.Label(self.window, text="Danke fÃ¼rs Spielen- Warte auf neuen Coin...", font=("Arial", 16), bg="#202020", fg="white").pack(pady=20)
+                tk.Button(self.window, text="Zurueck zum Menu", width=20, height=2, font=btn_font, command=self.show_main_menu).pack(pady=10)
+                self.window.update()
+                # <<< Ende Zwischenbildschirm - warte auf Coin Detection >>> 
+                while GPIO.input(PIN_COIN) != 0:
+                    self.window.update()
+                    time.sleep(0.05)
+                tk.Label(self.window, text="Neuer Coin erkannt - Automatik setzt fort!", font=("Arial", 16), bg="#202020", fg="white").pack(pady=10)
+                self.window.update()
 
     # ===================================================
     def exit_program(self):
