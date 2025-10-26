@@ -99,8 +99,18 @@ def move_z(direction, duration=0.2):
     check_stop_buttons()
     if direction == "up" and not block_z_up:
         GPIO.output(PIN_Z_UP, GPIO.HIGH)
+        print("Z UP FÃ¤hrt!") 
     elif direction == "down" and not block_z_down:
         GPIO.output(PIN_Z_DOWN, GPIO.HIGH)
+        print("Z DOWN FÃ¤hrt!") 
+    if block_z_down:
+        print("Z DOWN blockiert!") 
+        #GPIO.output(PIN_Z_DOWN, GPIO.HIGH)
+        #print("Z DOWN FÃ¤hrt!") 
+    if block_z_up:
+        print("Z UP blockiert!") 
+        #GPIO.output(PIN_Z_UP, GPIO.HIGH)
+        #print("Z UP FÃ¤hrt!") 
     time.sleep(duration)
     stop_all()
 
@@ -206,17 +216,17 @@ class GripperGUI:
     def show_main_menu(self):
         self.clear_window()
         btn_font = ("Noto Sans Display", 18, "bold")
-        tk.Button(self.window, text="Automatik Mode", width=30, height=3, font=btn_font, bg="black", fg="white", command=self.start_auto_mode).place(x=772, y=130)
+        tk.Button(self.window, text="Automatik Mode", width=30, height=3, font=btn_font, bg="black", fg="white", command=self.run_auto_as_manual).place(x=772, y=130)
         tk.Button(self.window, text="Kamera Mode", width=30, height=3, font=btn_font, bg="black", fg="white", command=self.start_camera_mode).place(x=772, y=330)
-        tk.Button(self.window, text="Manual Mode", width=30, height=3, font=btn_font, bg="black", fg="white", command=self.start_manual_mode).place(x=772, y=530)
-        tk.Button(self.window, text="EXIT", width=20, height=2, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-150, y=-150)
+        tk.Button(self.window, text="Manual Mode", width=30, height=3, font=btn_font, bg="black", fg="white", command=self.run_manual_mode).place(x=772, y=530)
+        tk.Button(self.window, text="EXIT", width=10, height=1, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-150, y=-150)
 
     def show_mode_screen(self, mode_name, start_function):
         self.clear_window()
         tk.Label(self.window, text=mode_name, width=30, height=3, font=("Noto Sans Display", 18, "bold"), bg="black", fg="white").place(x=772, y=130)
         tk.Button(self.window, text="Start", width=30, height=3, font=("Noto Sans Display", 18, "bold"), bg="black", fg="white", command=start_function).place(x=772, y=330)
-        tk.Button(self.window, text="Zurueck zum Menu", width=30, height=3, font=("Noto Sans Display", 18, "bold"), bg="black", fg="white", command=self.show_main_menu).place(x=772, y=530)
-        tk.Button(self.window, text="EXIT", width=20, height=2, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-150, y=-150)
+        tk.Button(self.window, text="ZurÃ¼ck zum Menu", width=30, height=3, font=("Noto Sans Display", 18, "bold"), bg="black", fg="white", command=self.show_main_menu).place(x=772, y=530)
+        #tk.Button(self.window, text="EXIT", width=20, height=2, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-150, y=-150)
 
     def start_auto_mode(self):
         self.show_mode_screen("Automatik Mode", self.run_auto_as_manual)
@@ -229,23 +239,23 @@ class GripperGUI:
 
     def run_manual_mode(self):
         self.clear_window()
-        tk.Label(self.window, text="Manual Mode aktiv", width=30, height=2, anchor="center", font=("Noto Sans Display", 18, "bold"), bg="black", fg="white").place(x=100, y=100)
-        btn_font = ("Noto Sans Display", 14, "bold")
-        tk.Button(self.window, text="Left", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_y("forward")).place(x=520, y=250)
-        tk.Button(self.window, text="Right", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_y("backward")).place(x=1120, y=250)
-        tk.Button(self.window, text="Forward", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: [move_x("left"), self._decrement_counter()]).place(x=820, y=100)
-        tk.Button(self.window, text="Backward", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: [move_x("right"), self._increment_counter()]).place(x=820, y=400)
-        tk.Button(self.window, text="Up", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_z("up")).place(x=1500, y=100)
-        tk.Button(self.window, text="Down", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_z("down")).place(x=1500, y=400)
-        tk.Button(self.window, text="Grip", width=30, height=3, font=btn_font, bg="black", fg="white", command=toggle_grip).place(x=1500, y=250)
-        tk.Button(self.window, text="Zurueck", width=30, height=3, font=btn_font, bg="black", fg="white", command=self.show_main_menu).place(x=820, y=750)
-        tk.Button(self.window, text="EXIT", width=20, height=2, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-100, y=-100)
+        tk.Label(self.window, text="Manual Mode aktiv", width=30, height=2, anchor="center", font=("Noto Sans Display", 22, "bold"), bg="black", fg="white").place(x=100, y=100)
+        btn_font = ("Noto Sans Display", 15, "bold")
+        tk.Button(self.window, text="Links", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_y("forward")).place(x=520, y=550)
+        tk.Button(self.window, text="Rechts", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_y("backward")).place(x=1120, y=550)
+        tk.Button(self.window, text="VorwÃ¤rts", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: [move_x("left"), self._decrement_counter()]).place(x=820, y=400)
+        tk.Button(self.window, text="RÃ¼ckwÃ¤rts", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: [move_x("right"), self._increment_counter()]).place(x=820, y=700)
+        tk.Button(self.window, text="Hoch", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_z("up")).place(x=1500, y=400)
+        tk.Button(self.window, text="Runter", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_z("down")).place(x=1500, y=550)
+        tk.Button(self.window, text="Greifen", width=30, height=3, font=btn_font, bg="black", fg="red", command=toggle_grip).place(x=200, y=400)
+        tk.Button(self.window, text="ZurÃ¼ck", width=10, height=1, font=btn_font, bg="black", fg="red", command=self.show_main_menu).place(relx=1.0, rely=1.0, anchor="se", x=-150, y=-150)
+        #tk.Button(self.window, text="EXIT", width=20, height=2, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-100, y=-100)
 
     def run_auto_as_manual(self):
         global _counter
         self.clear_window()
-        tk.Label(self.window, text="Automatik Mode - Warte auf Coin...", font=("Noto Sans Display", 18, "bold"), bg="black", fg="white").pack(pady=20)
-        tk.Button(self.window, text="Zurueck zum Menu", width=20, height=2, font=("Noto Sans Display", 18, "bold"), bg="black", fg="white", command=self.show_main_menu).pack(pady=10)
+        tk.Label(self.window, text="Warte auf 20 Cent Einwurf",width=30, height=3, font=("Noto Sans Display", 22, "bold"), bg="black", fg="red").pack(pady=280)
+        tk.Button(self.window, text="ZurÃ¼ck zum Menu", width=20, height=2, font=("Noto Sans Display", 18, "bold"), bg="black", fg="white", command=self.show_main_menu).pack(pady=20)
         self.window.update()
         # Warten auf Coin
         last_state = GPIO.input(PIN_COIN)
@@ -257,26 +267,27 @@ class GripperGUI:
             last_state = current_state
             self.window.update()
             time.sleep(0.05)
-        tk.Label(self.window, text="Coin erkannt - Automatik startet!", font=("Noto Sans Display", 18, "bold"), bg="black", fg="white").pack(pady=10)
+        tk.Label(self.window, text="Coin erkannt - Automatik startet!", width=30, height=3, font=("Noto Sans Display", 22, "bold"), bg="black", fg="red").pack(pady=80)
         
         self.window.update()
-        time.sleep(3)
+        time.sleep(1)
         
         
         
         self.clear_window()
-        btn_font = ("Noto Sans Display", 14, "bold")
-        tk.Button(self.window, text="Left",  width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=lambda: move_y("forward")).place(x=520, y=250)
-        tk.Button(self.window, text="Right",  width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=lambda: move_y("backward")).place(x=1120, y=250)
-        tk.Button(self.window, text="Forward",  width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=lambda: [move_x("left"), self._decrement_counter()]).place(x=820, y=100)
-        tk.Button(self.window, text="Backward",  width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=lambda: [move_x("right"), self._increment_counter()]).place(x=820, y=400)
-        tk.Button(self.window, text="Up",  width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=lambda: move_z("up")).place(x=1500, y=100)
-        tk.Button(self.window, text="Down",  width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=lambda: move_z("down")).place(x=1500, y=400)
-        tk.Button(self.window, text="Grip",  width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=toggle_grip).place(x=1500, y=250)
-        tk.Button(self.window, text="Zurueck", width=30, height=3, font=btn_font, bg="black", fg="white", bd=0, highlightthickness=0, command=self.show_main_menu).place(x=820, y=750)
-        tk.Button(self.window, text="EXIT", width=20, height=2, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", bd=0, highlightthickness=0, command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-100, y=-100)
-           
-        while True:
+        tk.Label(self.window, text="Automatik Mode aktiv", width=30, height=2, anchor="center", font=("Noto Sans Display", 22, "bold"), bg="black", fg="white").place(x=100, y=100)
+        btn_font = ("Noto Sans Display", 15, "bold")
+        tk.Button(self.window, text="Links", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_y("forward")).place(x=520, y=550)
+        tk.Button(self.window, text="Rechts", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_y("backward")).place(x=1120, y=550)
+        tk.Button(self.window, text="VorwÃ¤rts", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: [move_x("left"), self._decrement_counter()]).place(x=820, y=400)
+        tk.Button(self.window, text="RÃ¼ckwÃ¤rts", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: [move_x("right"), self._increment_counter()]).place(x=820, y=700)
+        tk.Button(self.window, text="Hoch", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_z("up")).place(x=1500, y=400)
+        tk.Button(self.window, text="Runter", width=30, height=3, font=btn_font, bg="black", fg="white", command=lambda: move_z("down")).place(x=1500, y=550)
+        tk.Button(self.window, text="Greifen", width=30, height=3, font=btn_font, bg="black", fg="red", command=toggle_grip).place(x=200, y=400)
+        tk.Button(self.window, text="ZurÃ¼ck", width=10, height=1, font=btn_font, bg="black", fg="red", command=self.show_main_menu).place(relx=1.0, rely=1.0, anchor="se", x=-150, y=-150)
+        #tk.Button(self.window, text="EXIT", width=20, height=2, font=("Noto Sans Display", 18, "bold"), fg="red", bg="black", bd=0, highlightthickness=0, command=self.exit_program).place(relx=1.0, rely=1.0, anchor="se", x=-100, y=-100)
+        ende = 1 
+        while ende:
          #gleicher code wie manuel mode hier rein:
             #self.clear_window()
             # Steuerbuttons genau wie in run_auto_as_manual
@@ -298,11 +309,14 @@ class GripperGUI:
                 
                 toggle_grip()
                 tk.Label(self.window, text="Danke fÃ¼rs Spielen", font=("Noto Sans Display", 18, "bold"), bg="black", fg="white").pack(pady=20)
-                tk.Button(self.window, text="ZurÃ¼ck zum Menu", width=30, height=3, font=("Noto Sans Display", 18, "bold"),bg="black", fg="white", command=self.show_main_menu).pack(pady=10)
-                self.window.update()
-                break
-                #break
-        
+                time.sleep(1)
+                
+                #tk.Button(self.window, text="ZurÃ¼ck zum Menu", width=30, height=3, font=("Noto Sans Display", 18, "bold"),bg="black", fg="white", command=self.show_main_menu).pack(pady=10)
+                #self.window.update()
+                ende = 0
+                
+        self.window.update()
+        self.run_auto_as_manual()
         
 
     def exit_program(self):
@@ -315,3 +329,4 @@ class GripperGUI:
 # ========================
 if __name__ == "__main__":
     GripperGUI()
+
